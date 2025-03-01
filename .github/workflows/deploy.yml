@@ -56,7 +56,7 @@ jobs:
       - name: Deploy Prediction Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'prediction')
         run: |
-          docker build -t ${{ vars.ACR_URL }}/prediction:$SHORT_SHAt -f backend/prediction/Dockerfile backend/prediction
+          docker build -t ${{ vars.ACR_URL }}/prediction:$SHORT_SHA -f backend/prediction/Dockerfile backend/prediction
           docker push ${{ vars.ACR_URL }}/prediction:$SHORT_SHA
           helm upgrade --install prediction deployments/prediction-chart --set image.repository=${{ vars.ACR_URL }}/prediction --set image.tag=$SHORT_SHA --namespace backend
 
