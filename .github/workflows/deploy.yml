@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted  # Use GitHub runner installed on your server
+    runs-on: self-hosted
 
     steps:
       - name: Checkout code
@@ -29,7 +29,7 @@ jobs:
             echo "DEPLOY_ALL=true" >> $GITHUB_ENV
           else
             echo "DEPLOY_ALL=false" >> $GITHUB_ENV
-            echo "DEPLOY_SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -R 'split(",")')" >> $GITHUB_ENV
+            echo "DEPLOY_SERVICES=$(echo '${{ github.event.inputs.services }}' | tr ',' ' ')" >> $GITHUB_ENV
           fi
 
       - name: Debug Inputs
@@ -38,29 +38,15 @@ jobs:
           echo "DEPLOY_SERVICES=$DEPLOY_SERVICES"
 
       - name: Deploy Notification Service
-        if: env.DEPLOY_ALL == 'true' || contains(fromJSON(env.DEPLOY_SERVICES), 'notification')
+        if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'notification')
         run: |
           docker build -t ${{ vars.ACR_URL }}/notification:latest -f notification/Dockerfile notification
           docker push ${{ vars.ACR_URL }}/notification:latest
           helm upgrade --install notification deployment/notification-chart --set image.repository=${{ vars.ACR_URL }}/notification
 
       - name: Deploy Prediction Service
-        if: env.DEPLOY_ALL == 'true' || contains(fromJSON(env.DEPLOY_SERVICES), 'prediction')
+        if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'prediction')
         run: |
           docker build -t ${{ vars.ACR_URL }}/prediction:latest -f prediction/Dockerfile prediction
           docker push ${{ vars.ACR_URL }}/prediction:latest
           helm upgrade --install prediction deployment/prediction-chart --set image.repository=${{ vars.ACR_URL }}/prediction
-
-      - name: Deploy Ingestion Service
-        if: env.DEPLOY_ALL == 'true' || contains(fromJSON(env.DEPLOY_SERVICES), 'ingestion')
-        run: |
-          docker build -t ${{ vars.ACR_URL }}/ingestion:latest -f ingestion/Dockerfile ingestion
-          docker push ${{ vars.ACR_URL }}/ingestion:latest
-          helm upgrade --install ingestion deployment/ingestion-chart --set image.repository=${{ vars.ACR_URL }}/ingestion
-
-      - name: Deploy Processing Service
-        if: env.DEPLOY_ALL == 'true' || contains(fromJSON(env.DEPLOY_SERVICES), 'dataprocessing')
-        run: |
-          docker build -t ${{ vars.ACR_URL }}/dataprocessing:latest -f data-processing/Dockerfile dataprocessing
-          docker push ${{ vars.ACR_URL }}/dataprocessing:latest
-          helm upgrade --install dataprocessing deployment/dataprocessing-chart --set image.repository=${{ vars.ACR_URL }}/dataprocessing
