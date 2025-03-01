@@ -40,6 +40,7 @@ jobs:
       - name: Deploy Notification Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'notification')
         run: |
+          ls -la
           docker build -t ${{ vars.ACR_URL }}/notification:latest -f notification/Dockerfile notification
           docker push ${{ vars.ACR_URL }}/notification:latest
           helm upgrade --install notification deployment/notification-chart --set image.repository=${{ vars.ACR_URL }}/notification
