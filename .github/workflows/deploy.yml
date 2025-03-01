@@ -1,9 +1,6 @@
 name: Deploy Services
 
 on:
-  push:
-    branches:
-      - develop  # Auto deploy when code is pushed to develop
   workflow_dispatch:  # Manually trigger workflow with selected services
     inputs:
       services:
