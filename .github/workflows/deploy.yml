@@ -7,6 +7,9 @@ on:
         description: "Enter services to deploy (comma-separated, e.g., notification,prediction)"
         required: true
         default: "all"
+  push:
+    branches:
+      - develop
 
 jobs:
   build-and-deploy:
