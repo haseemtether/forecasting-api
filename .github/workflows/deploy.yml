@@ -4,12 +4,9 @@ on:
   workflow_dispatch:  # Manually trigger workflow with selected services
     inputs:
       services:
-        description: "Enter services to deploy (comma-separated, e.g., notification,prediction)"
+        description: "Enter services to deploy (comma-separated, e.g., notification,prediction,dataprocessing,ingestion)"
         required: true
         default: "all"
-  push:
-    branches:
-      - develop
 
 jobs:
   build-and-deploy:
@@ -24,6 +21,12 @@ jobs:
           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
           chmod 700 get_helm.sh
           ./get_helm.sh
+
+      - name: Set Short SHA
+        id: set-short-sha
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
 
       - name: Log in to Azure Container Registry
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ${{ vars.ACR_URL }} -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
@@ -46,13 +49,27 @@ jobs:
       - name: Deploy Notification Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'notification')
         run: |
-          docker build -t ${{ vars.ACR_URL }}/notification:latest -f backend/notification/Dockerfile backend/notification
-          docker push ${{ vars.ACR_URL }}/notification:latest
-          helm upgrade --install notification deployment/notification-chart --set image.repository=${{ vars.ACR_URL }}/notification --namespace backend
+          docker build -t ${{ vars.ACR_URL }}/notification:$SHORT_SHA -f backend/notification/Dockerfile backend/notification
+          docker push ${{ vars.ACR_URL }}/notification:$SHORT_SHA
+          helm upgrade --install notification deployments/notification-chart --set image.repository=${{ vars.ACR_URL }}/notification --set image.tag=$SHORT_SHA --namespace backend
 
       - name: Deploy Prediction Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'prediction')
         run: |
-          docker build -t ${{ vars.ACR_URL }}/prediction:latest -f backend/prediction/Dockerfile backend/prediction
-          docker push ${{ vars.ACR_URL }}/prediction:latest
-          helm upgrade --install prediction deployment/prediction-chart --set image.repository=${{ vars.ACR_URL }}/prediction --namespace backend
+          docker build -t ${{ vars.ACR_URL }}/prediction:$SHORT_SHAt -f backend/prediction/Dockerfile backend/prediction
+          docker push ${{ vars.ACR_URL }}/prediction:$SHORT_SHA
+          helm upgrade --install prediction deployments/prediction-chart --set image.repository=${{ vars.ACR_URL }}/prediction --set image.tag=$SHORT_SHA --namespace backend
+
+      - name: Deploy DataProcessing Service
+        if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'dataprocessing')
+        run: |
+          docker build -t ${{ vars.ACR_URL }}/dataprocessing:$SHORT_SHA -f backend/dataprocessing/Dockerfile backend/dataprocessing
+          docker push ${{ vars.ACR_URL }}/dataprocessing:$SHORT_SHA
+          helm upgrade --install dataprocessing deployments/dataprocessing-chart --set image.repository=${{ vars.ACR_URL }}/dataprocessing --set image.tag=$SHORT_SHA --namespace backend
+  
+      - name: Deploy Ingestion Service
+        if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'ingestion')
+        run: |
+          docker build -t ${{ vars.ACR_URL }}/ingestion:$SHORT_SHA -f backend/ingestion/Dockerfile backend/ingestion
+          docker push ${{ vars.ACR_URL }}/ingestion:$SHORT_SHA
+          helm upgrade --install ingestion deployments/ingestion-chart --set image.repository=${{ vars.ACR_URL }}/ingestion --set image.tag=$SHORT_SHA --namespace backend
