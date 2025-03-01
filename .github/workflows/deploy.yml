@@ -48,11 +48,11 @@ jobs:
         run: |
           docker build -t ${{ vars.ACR_URL }}/notification:latest -f backend/notification/Dockerfile backend/notification
           docker push ${{ vars.ACR_URL }}/notification:latest
-          helm upgrade --install notification deployment/notification-chart --set image.repository=${{ vars.ACR_URL }}/notification
+          helm upgrade --install notification deployment/notification-chart --set image.repository=${{ vars.ACR_URL }}/notification --namespace backend
 
       - name: Deploy Prediction Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'prediction')
         run: |
           docker build -t ${{ vars.ACR_URL }}/prediction:latest -f backend/prediction/Dockerfile backend/prediction
           docker push ${{ vars.ACR_URL }}/prediction:latest
-          helm upgrade --install prediction deployment/prediction-chart --set image.repository=${{ vars.ACR_URL }}/prediction
+          helm upgrade --install prediction deployment/prediction-chart --set image.repository=${{ vars.ACR_URL }}/prediction --namespace backend
