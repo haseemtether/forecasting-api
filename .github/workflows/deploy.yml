@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Log in to Azure Container Registry
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login $ACR_URL -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ${{ vars.ACR_URL }} -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Determine which services to deploy
         id: set-services
@@ -36,27 +36,27 @@ jobs:
       - name: Deploy Notification Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'notification')
         run: |
-          docker build -t $ACR_URL/notification:latest -f notification/Dockerfile notification
-          docker push $ACR_URL/notification:latest
-          helm upgrade --install notification deployment/notification-chart --set image.repository=$ACR_URL/notification
+          docker build -t ${{ vars.ACR_URL }}/notification:latest -f notification/Dockerfile notification
+          docker push ${{ vars.ACR_URL }}/notification:latest
+          helm upgrade --install notification deployment/notification-chart --set image.repository=${{ vars.ACR_URL }}/notification
 
       - name: Deploy Prediction Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'prediction')
         run: |
-          docker build -t $ACR_URL/prediction:latest -f prediction/Dockerfile prediction
-          docker push $ACR_URL/prediction:latest
-          helm upgrade --install prediction deployment/prediction-chart --set image.repository=$ACR_URL/prediction
+          docker build -t ${{ vars.ACR_URL }}/prediction:latest -f prediction/Dockerfile prediction
+          docker push ${{ vars.ACR_URL }}/prediction:latest
+          helm upgrade --install prediction deployment/prediction-chart --set image.repository=${{ vars.ACR_URL }}/prediction
 
       - name: Deploy Ingestion Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'ingestion')
         run: |
-          docker build -t $ACR_URL/ingestion:latest -f ingestion/Dockerfile ingestion
-          docker push $ACR_URL/ingestion:latest
-          helm upgrade --install ingestion deployment/ingestion-chart --set image.repository=$ACR_URL/ingestion
+          docker build -t ${{ vars.ACR_URL }}/ingestion:latest -f ingestion/Dockerfile ingestion
+          docker push ${{ vars.ACR_URL }}/ingestion:latest
+          helm upgrade --install ingestion deployment/ingestion-chart --set image.repository=${{ vars.ACR_URL }}/ingestion
 
       - name: Deploy Processing Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'dataprocessing')
         run: |
-          docker build -t $ACR_URL/dataprocessing:latest -f data-processing/Dockerfile dataprocessing
-          docker push $ACR_URL/dataprocessing:latest
-          helm upgrade --install dataprocessing deployment/dataprocessing-chart --set image.repository=$ACR_URL/dataprocessing
+          docker build -t ${{ vars.ACR_URL }}/dataprocessing:latest -f data-processing/Dockerfile dataprocessing
+          docker push ${{ vars.ACR_URL }}/dataprocessing:latest
+          helm upgrade --install dataprocessing deployment/dataprocessing-chart --set image.repository=${{ vars.ACR_URL }}/dataprocessing
