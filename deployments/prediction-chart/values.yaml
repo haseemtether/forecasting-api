@@ -22,3 +22,17 @@ resources:
 
 imagePullSecrets:
   - name: docker-registry-credentials
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: prediction.duckdns.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: prediction-tls-secret
+      hosts:
+        - prediction.duckdns.org

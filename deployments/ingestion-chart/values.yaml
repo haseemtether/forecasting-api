@@ -22,3 +22,18 @@ resources:
 
 imagePullSecrets:
   - name: docker-registry-credentials
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: ingestion.duckdns.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: ingestion-tls-secret
+      hosts:
+        - ingestion.duckdns.org

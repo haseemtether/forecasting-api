@@ -22,3 +22,17 @@ resources:
 
 imagePullSecrets:
   - name: docker-registry-credentials
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: notee8.duckdns.org
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: notification-tls-secret
+      hosts:
+        - notee8.duckdns.org
