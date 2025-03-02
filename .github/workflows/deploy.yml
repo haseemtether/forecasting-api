@@ -1,7 +1,7 @@
 name: Deploy Services
 
 on:
-  workflow_dispatch:  # Manually trigger workflow with selected services
+  workflow_dispatch:
     inputs:
       services:
         description: "Enter services to deploy (comma-separated, e.g., notification,prediction,dataprocessing,ingestion)"
@@ -9,9 +9,71 @@ on:
         default: "all"
 
 jobs:
-  build-and-deploy:
+  container-scanning:
     runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
+      - name: Set Short SHA
+        id: set-short-sha
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
+      
+      - name: Log in to Azure Container Registry
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ${{ vars.ACR_URL }} -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+  
+      - name: Determine which services to deploy
+        id: set-services
+        run: |
+          if [[ "${{ github.event.inputs.services }}" == "all" ]]; then
+            echo "DEPLOY_ALL=true" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_ALL=false" >> $GITHUB_ENV
+            echo "DEPLOY_SERVICES=$(echo '${{ github.event.inputs.services }}' | tr ',' ' ')" >> $GITHUB_ENV
+          fi
+  
+      - name: Debug Inputs
+        run: |
+          echo "DEPLOY_ALL=$DEPLOY_ALL"
+          echo "DEPLOY_SERVICES=$DEPLOY_SERVICES"
+
+      - name: Scan Notification Service
+        if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'notification')
+        run: |
+          docker build -t notification-scan:$SHORT_SHA -f backend/notification/Dockerfile backend/notification
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 --format json -o /app/trivy-notification.json notification-scan:$SHORT_SHA
+
+      - name: Scan Prediction Service
+        if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'prediction')
+        run: |
+          docker build -t prediction-scan:$SHORT_SHA -f backend/prediction/Dockerfile backend/prediction
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 --format json -o /app/trivy-prediction.json prediction-scan:$SHORT_SHA
+
+      - name: Scan DataProcessing Service
+        if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'dataprocessing')
+        run: |
+          docker build -t dataprocessing-scan:$SHORT_SHA -f backend/data-processing/Dockerfile backend/data-processing
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 --format json -o /app/trivy-dataprocessing.json dataprocessing-scan:$SHORT_SHA
+
+      - name: Scan Ingestion Service
+        if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'ingestion')
+        run: |
+          docker build -t ingestion-scan:$SHORT_SHA -f backend/ingestion/Dockerfile backend/ingestion
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 --format json -o /app/trivy-ingestion.json ingestion-scan:$SHORT_SHA
+
+      - name: Upload Trivy Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-reports
+          path: trivy-*.json
+
+  build-and-deploy:
+    needs: container-scanning
+    runs-on: self-hosted
+    if: success()  # Only runs if scanning job succeeds
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,38 +84,13 @@ jobs:
           chmod 700 get_helm.sh
           ./get_helm.sh
 
-      - name: Set Short SHA
-        id: set-short-sha
-        run: |
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
-
       - name: Log in to Azure Container Registry
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ${{ vars.ACR_URL }} -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-      - name: Determine which services to deploy
-        id: set-services
-        run: |
-          if [[ "${{ github.event.inputs.services }}" == "all" ]]; then
-            echo "DEPLOY_ALL=true" >> $GITHUB_ENV
-          else
-            echo "DEPLOY_ALL=false" >> $GITHUB_ENV
-            echo "DEPLOY_SERVICES=$(echo '${{ github.event.inputs.services }}' | tr ',' ' ')" >> $GITHUB_ENV
-          fi
-
-      - name: Debug Inputs
-        run: |
-          echo "DEPLOY_ALL=$DEPLOY_ALL"
-          echo "DEPLOY_SERVICES=$DEPLOY_SERVICES"
 
       - name: Deploy Notification Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'notification')
         run: |
           docker build -t ${{ vars.ACR_URL }}/notification:$SHORT_SHA -f backend/notification/Dockerfile backend/notification
-          
-          # Run Trivy scan before pushing the image
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 ${{ vars.ACR_URL }}/notification:$SHORT_SHA
-
           docker push ${{ vars.ACR_URL }}/notification:$SHORT_SHA
           helm upgrade --install notification deployments/notification-chart --set image.repository=${{ vars.ACR_URL }}/notification --set image.tag=$SHORT_SHA --namespace backend
 
@@ -61,10 +98,6 @@ jobs:
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'prediction')
         run: |
           docker build -t ${{ vars.ACR_URL }}/prediction:$SHORT_SHA -f backend/prediction/Dockerfile backend/prediction
-          
-          # Run Trivy scan before pushing the image
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 ${{ vars.ACR_URL }}/prediction:$SHORT_SHA
-
           docker push ${{ vars.ACR_URL }}/prediction:$SHORT_SHA
           helm upgrade --install prediction deployments/prediction-chart --set image.repository=${{ vars.ACR_URL }}/prediction --set image.tag=$SHORT_SHA --namespace backend
 
@@ -72,10 +105,6 @@ jobs:
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'dataprocessing')
         run: |
           docker build -t ${{ vars.ACR_URL }}/dataprocessing:$SHORT_SHA -f backend/data-processing/Dockerfile backend/data-processing
-          
-          # Run Trivy scan before pushing the image
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 ${{ vars.ACR_URL }}/dataprocessing:$SHORT_SHA
-
           docker push ${{ vars.ACR_URL }}/dataprocessing:$SHORT_SHA
           helm upgrade --install dataprocessing deployments/dataprocessing-chart --set image.repository=${{ vars.ACR_URL }}/dataprocessing --set image.tag=$SHORT_SHA --namespace backend
 
@@ -83,9 +112,5 @@ jobs:
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'ingestion')
         run: |
           docker build -t ${{ vars.ACR_URL }}/ingestion:$SHORT_SHA -f backend/ingestion/Dockerfile backend/ingestion
-          
-          # Run Trivy scan before pushing the image
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 ${{ vars.ACR_URL }}/ingestion:$SHORT_SHA
-
           docker push ${{ vars.ACR_URL }}/ingestion:$SHORT_SHA
           helm upgrade --install ingestion deployments/ingestion-chart --set image.repository=${{ vars.ACR_URL }}/ingestion --set image.tag=$SHORT_SHA --namespace backend
