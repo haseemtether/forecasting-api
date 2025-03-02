@@ -63,7 +63,7 @@ jobs:
       - name: Deploy DataProcessing Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'dataprocessing')
         run: |
-          docker build -t ${{ vars.ACR_URL }}/dataprocessing:$SHORT_SHA -f backend/dataprocessing/Dockerfile backend/dataprocessing
+          docker build -t ${{ vars.ACR_URL }}/dataprocessing:$SHORT_SHA -f backend/data-processing/Dockerfile backend/data-processing
           docker push ${{ vars.ACR_URL }}/dataprocessing:$SHORT_SHA
           helm upgrade --install dataprocessing deployments/dataprocessing-chart --set image.repository=${{ vars.ACR_URL }}/dataprocessing --set image.tag=$SHORT_SHA --namespace backend
   
