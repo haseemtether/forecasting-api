@@ -4,10 +4,10 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install dependencies and update packages securely
+# Update system packages and remove vulnerabilities
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-    libffi-dev gcc && \
+    libffi-dev gcc zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Use non-root user for security
@@ -19,7 +19,7 @@ COPY requirements.txt ./
 
 # Install dependencies in a virtual environment
 RUN python -m venv /home/appuser/venv && \
-    /home/appuser/venv/bin/pip install --no-cache-dir --upgrade pip && \
+    /home/appuser/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \
     /home/appuser/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
