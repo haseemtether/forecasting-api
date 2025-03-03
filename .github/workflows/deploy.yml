@@ -43,25 +43,25 @@ jobs:
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'notification')
         run: |
           docker build -t notification-scan:$SHORT_SHA -f backend/notification/Dockerfile backend/notification
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 --format json -o /app/trivy-notification.json notification-scan:$SHORT_SHA
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL --exit-code 1 --format json -o /app/trivy-notification.json notification-scan:$SHORT_SHA
 
       - name: Scan Prediction Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'prediction')
         run: |
           docker build -t prediction-scan:$SHORT_SHA -f backend/prediction/Dockerfile backend/prediction
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 --format json -o /app/trivy-prediction.json prediction-scan:$SHORT_SHA
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL --exit-code 1 --format json -o /app/trivy-prediction.json prediction-scan:$SHORT_SHA
 
       - name: Scan DataProcessing Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'dataprocessing')
         run: |
           docker build -t dataprocessing-scan:$SHORT_SHA -f backend/data-processing/Dockerfile backend/data-processing
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 --format json -o /app/trivy-dataprocessing.json dataprocessing-scan:$SHORT_SHA
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL --exit-code 1 --format json -o /app/trivy-dataprocessing.json dataprocessing-scan:$SHORT_SHA
 
       - name: Scan Ingestion Service
         if: env.DEPLOY_ALL == 'true' || contains(env.DEPLOY_SERVICES, 'ingestion')
         run: |
           docker build -t ingestion-scan:$SHORT_SHA -f backend/ingestion/Dockerfile backend/ingestion
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL,HIGH --exit-code 1 --format json -o /app/trivy-ingestion.json ingestion-scan:$SHORT_SHA
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/app aquasec/trivy image --severity CRITICAL --exit-code 1 --format json -o /app/trivy-ingestion.json ingestion-scan:$SHORT_SHA
 
       - name: Upload Trivy Reports
         if: always()

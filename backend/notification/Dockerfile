@@ -4,36 +4,32 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Update OS packages and install security updates
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    build-essential libffi-dev python3-venv \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies and update packages securely
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    libffi-dev gcc && \
+    rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
+# Use non-root user for security
 RUN useradd --create-home appuser
-
-# Ensure the working directory is owned by the non-root user before switching
-RUN chown -R appuser:appuser /app
-
-# Switch to non-root user
 USER appuser
 
-# Create and activate a virtual environment inside the user home directory
-RUN python -m venv /home/appuser/venv
-ENV PATH="/home/appuser/venv/bin:$PATH"
+# Copy dependencies
+COPY requirements.txt ./
 
-# Copy dependencies first for better caching
-COPY --chown=appuser:appuser requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+# Install dependencies in a virtual environment
+RUN python -m venv /home/appuser/venv && \
+    /home/appuser/venv/bin/pip install --no-cache-dir --upgrade pip && \
+    /home/appuser/venv/bin/pip install --no-cache-dir -r requirements.txt
 
-# Copy application code and set correct ownership
+# Copy source code
 COPY --chown=appuser:appuser src/ .
 
-# Expose port (necessary for Kubernetes Service)
+# Expose port
 EXPOSE 8000
 
-# No need to change permissions explicitly
-# Remove `chmod` step as files are copied with correct ownership
+# Use virtual environment for execution
+ENV PATH="/home/appuser/venv/bin:$PATH"
 
-# Run the application
+# Run the app
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
