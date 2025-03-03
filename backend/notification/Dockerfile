@@ -6,10 +6,8 @@ WORKDIR /app
 
 # Update OS packages and install security updates
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    build-essential libffi-dev python3-venv \
     && rm -rf /var/lib/apt/lists/*
-
-# Install required system dependencies
-RUN apt-get install -y --no-install-recommends gcc musl-dev libffi-dev
 
 # Create a non-root user and set correct permissions
 RUN useradd --create-home appuser && chown -R appuser /app
