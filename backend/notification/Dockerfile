@@ -11,11 +11,13 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 
 # Create a non-root user and set correct permissions
 RUN useradd --create-home appuser && chown -R appuser /app
+
+# Switch to non-root user before creating the virtual environment
 USER appuser
 
-# Create and activate a virtual environment
-RUN python -m venv /venv
-ENV PATH="/venv/bin:$PATH"
+# Create and activate a virtual environment inside the user home directory
+RUN python -m venv /home/appuser/venv
+ENV PATH="/home/appuser/venv/bin:$PATH"
 
 # Copy dependencies first for better caching
 COPY requirements.txt .
